@@ -1,0 +1,19 @@
+
+.h1_div {
+    font-size:xx-large;
+    color:  rgb(94, 47, 13);
+    text-align:center;
+}
+.h2_div {
+    font-size:x-large;
+    color:  rgb(94, 47, 13);
+    text-align:center;
+}
+.a_div{
+    font-size:28px;
+    display:inline-block;
+}
+.body_div{
+    font-size:larger;
+
+}

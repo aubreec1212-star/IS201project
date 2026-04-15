@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multi Sudoku</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    select, button {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.95rem;
+    }
+
+    #board {
+      display: grid;
+      gap: 2px;
+      background: #000;
+    }
+
+    .cell {
+      width: 2.2rem;
+      height: 2.2rem;
+      text-align: center;
+      font-size: 1.1rem;
+      border: none;
+      outline: none;
+      background: #fff;
+    }
+
+    .cell[readonly] {
+      background: #e0e0e0;
+      font-weight: bold;
+    }
+
+    .subgrid-border {
+      border-right: 2px solid #000;
+    }
+
+    .row-border {
+      border-bottom: 2px solid #000;
+    }
+
+    #message {
+      min-height: 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    a{
+      color:rgb(168, 232, 168);
+    }
+    a:hover{
+    text-decoration: line-through;
+    color: rgb(94, 47, 13);
+}
+
+a:visited{
+    color:khaki;
+}
+  </style>
+</head>
+<body>
+  <h1>Multi Sudoku</h1>
+
+  <div class="controls">
+    <label for="variant"><strong>Sudoku option:</strong></label>
+    <select id="variant">
+      <option value="4x4-easy">4×4 – Easy</option>
+      <option value="4x4-hard">4×4 – Hard</option>
+      <option value="9x9-easy">9×9 – Easy</option>
+      <option value="9x9-hard">9×9 – Hard</option>
+    </select>
+    <button id="load">Load Puzzle</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="btn-row">
+    <button id="check">Check Solution</button>
+    <button id="clear">Clear Notes</button>
+    <button id="Home"><a href="../../isproject/index.html">Home Page</a></button>
+  </div>
+
+  <div id="message"></div>
+
+  <script>
+    // --- Correct, consistent Sudoku puzzles + solutions ---
+    const puzzles = {
+      // 4x4 Latin square:
+      // 1 2 3 4
+      // 3 4 1 2
+      // 2 3 4 1
+      // 4 1 2 3
+
+      "4x4-easy": {
+        size: 4,
+        boxSize: 2,
+        puzzle: [
+          [1, 0, 3, 0],
+          [0, 4, 0, 2],
+          [0, 3, 4, 0],
+          [4, 0, 0, 3]
+        ],
+        solution: [
+          [1, 2, 3, 4],
+          [3, 4, 1, 2],
+          [2, 3, 4, 1],
+          [4, 1, 2, 3]
+        ]
+      },
+
+      "4x4-hard": {
+        size: 4,
+        boxSize: 2,
+        puzzle: [
+          [0, 2, 0, 4],
+          [3, 0, 1, 0],
+          [0, 3, 0, 1],
+          [4, 0, 2, 0]
+        ],
+        solution: [
+          [1, 2, 3, 4],
+          [3, 4, 1, 2],
+          [2, 3, 4, 1],
+          [4, 1, 2, 3]
+        ]
+      },
+
+      // Classic 9x9 easy
+      "9x9-easy": {
+        size: 9,
+        boxSize: 3,
+        puzzle: [
+          [5,3,0, 0,7,0, 0,0,0],
+          [6,0,0, 1,9,5, 0,0,0],
+          [0,9,8, 0,0,0, 0,6,0],
+
+          [8,0,0, 0,6,0, 0,0,3],
+          [4,0,0, 8,0,3, 0,0,1],
+          [7,0,0, 0,2,0, 0,0,6],
+
+          [0,6,0, 0,0,0, 2,8,0],
+          [0,0,0, 4,1,9, 0,0,5],
+          [0,0,0, 0,8,0, 0,7,9]
+        ],
+        solution: [
+          [5,3,4, 6,7,8, 9,1,2],
+          [6,7,2, 1,9,5, 3,4,8],
+          [1,9,8, 3,4,2, 5,6,7],
+
+          [8,5,9, 7,6,1, 4,2,3],
+          [4,2,6, 8,5,3, 7,9,1],
+          [7,1,3, 9,2,4, 8,5,6],
+
+          [9,6,1, 5,3,7, 2,8,4],
+          [2,8,7, 4,1,9, 6,3,5],
+          [3,4,5, 2,8,6, 1,7,9]
+        ]
+      },
+
+      // Reuse a harder masking of the same valid solution for "hard"
+      "9x9-hard": {
+        size: 9,
+        boxSize: 3,
+        puzzle: [
+          [0,0,4, 0,7,0, 9,0,0],
+          [6,0,0, 1,0,5, 0,0,8],
+          [0,9,0, 0,0,0, 0,6,0],
+
+          [8,0,0, 0,6,0, 0,0,3],
+          [0,2,0, 8,0,3, 0,9,0],
+          [7,0,0, 0,2,0, 0,0,6],
+
+          [0,6,0, 0,0,0, 2,8,0],
+          [2,0,0, 4,0,9, 0,0,5],
+          [0,0,5, 0,8,0, 1,0,0]
+        ],
+        solution: [
+          [5,3,4, 6,7,8, 9,1,2],
+          [6,7,2, 1,9,5, 3,4,8],
+          [1,9,8, 3,4,2, 5,6,7],
+
+          [8,5,9, 7,6,1, 4,2,3],
+          [4,2,6, 8,5,3, 7,9,1],
+          [7,1,3, 9,2,4, 8,5,6],
+
+          [9,6,1, 5,3,7, 2,8,4],
+          [2,8,7, 4,1,9, 6,3,5],
+          [3,4,5, 2,8,6, 1,7,9]
+        ]
+      }
+    };
+
+    const boardEl = document.getElementById("board");
+    const messageEl = document.getElementById("message");
+    const variantSelect = document.getElementById("variant");
+
+    let currentPuzzle = null;
+
+    function createBoard(puzzle) {
+      boardEl.innerHTML = "";
+      const { size, boxSize, puzzle: grid } = puzzle;
+
+      boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.maxLength = 1;
+          input.className = "cell";
+          input.dataset.row = r;
+          input.dataset.col = c;
+
+          const value = grid[r][c];
+          if (value !== 0) {
+            input.value = value;
+            input.readOnly = true;
+          }
+
+          if ((c + 1) % boxSize === 0 && c !== size - 1) {
+            input.classList.add("subgrid-border");
+          }
+          if ((r + 1) % boxSize === 0 && r !== size - 1) {
+            input.classList.add("row-border");
+          }
+
+          input.addEventListener("input", () => {
+            const v = input.value.replace(/[^0-9]/g, "");
+            input.value = v;
+          });
+
+          boardEl.appendChild(input);
+        }
+      }
+    }
+
+    function loadSelectedPuzzle() {
+      const key = variantSelect.value;
+      currentPuzzle = puzzles[key];
+      createBoard(currentPuzzle);
+      messageEl.textContent = "";
+    }
+
+    function getBoardValues() {
+      const { size } = currentPuzzle;
+      const values = Array.from({ length: size }, () => Array(size).fill(0));
+      const cells = boardEl.querySelectorAll(".cell");
+
+      cells.forEach(cell => {
+        const r = Number(cell.dataset.row);
+        const c = Number(cell.dataset.col);
+        const v = cell.value ? Number(cell.value) : 0;
+        values[r][c] = v;
+      });
+
+      return values;
+    }
+
+    function checkSolution() {
+      if (!currentPuzzle) return;
+      const values = getBoardValues();
+      const solution = currentPuzzle.solution;
+
+      for (let r = 0; r < solution.length; r++) {
+        for (let c = 0; c < solution.length; c++) {
+          if (values[r][c] !== solution[r][c]) {
+            messageEl.textContent = "Incorrect — keep trying.";
+            messageEl.style.color = "red";
+            return;
+          }
+        }
+      }
+
+      messageEl.textContent = "Correct! Puzzle solved.";
+      messageEl.style.color = "green";
+    }
+
+    document.getElementById("load").addEventListener("click", loadSelectedPuzzle);
+    document.getElementById("check").addEventListener("click", checkSolution);
+
+    document.getElementById("clear").addEventListener("click", () => {
+      if (!currentPuzzle) return;
+      const cells = boardEl.querySelectorAll(".cell:not([readonly])");
+      cells.forEach(c => (c.value = ""));
+      messageEl.textContent = "";
+    });
+
+    // Load default on first visit
+    loadSelectedPuzzle();
+  </script>
+</body>
+</html>
+
